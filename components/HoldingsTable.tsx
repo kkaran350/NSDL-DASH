@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Holding, QuantityDelta } from "@/lib/types";
+import { Holding, QuantityDelta, DailyChange } from "@/lib/types";
+import { parseLedgerDate } from "@/lib/dates";
 
 interface HoldingsTableProps {
   holdings: Holding[];
   deltas: QuantityDelta[];
+  dailyChanges: DailyChange[];
 }
 
 type SortKey = "isin" | "description" | "lastTransactionDate" | "quantity" | "value";
 type SortDir = "asc" | "desc";
 
-export default function HoldingsTable({ holdings, deltas }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, deltas, dailyChanges }: HoldingsTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("quantity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -19,6 +21,11 @@ export default function HoldingsTable({ holdings, deltas }: HoldingsTableProps) 
   const deltaMap = useMemo(
     () => new Map(deltas.map((d) => [d.isin, d.change])),
     [deltas]
+  );
+
+  const dailyMap = useMemo(
+    () => new Map(dailyChanges.map((d) => [d.isin, d])),
+    [dailyChanges]
   );
 
   const filtered = useMemo(() => {
@@ -35,6 +42,8 @@ export default function HoldingsTable({ holdings, deltas }: HoldingsTableProps) 
       let cmp = 0;
       if (sortKey === "quantity" || sortKey === "value") {
         cmp = a[sortKey] - b[sortKey];
+      } else if (sortKey === "lastTransactionDate") {
+        cmp = parseLedgerDate(a.lastTransactionDate) - parseLedgerDate(b.lastTransactionDate);
       } else {
         cmp = a[sortKey].localeCompare(b[sortKey]);
       }
@@ -96,6 +105,9 @@ export default function HoldingsTable({ holdings, deltas }: HoldingsTableProps) 
               <th className="border-b border-border px-3 py-2 text-right font-mono text-[11px] uppercase tracking-wider text-ink-soft">
                 Δ since last sync
               </th>
+              <th className="border-b border-border px-3 py-2 text-right font-mono text-[11px] uppercase tracking-wider text-ink-soft">
+                Today's change
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -124,12 +136,33 @@ export default function HoldingsTable({ holdings, deltas }: HoldingsTableProps) 
                       </span>
                     )}
                   </td>
+                  <td className="tabular px-3 py-2 text-right font-mono text-xs">
+                    {(() => {
+                      const daily = dailyMap.get(h.isin);
+                      if (!daily || (daily.additions === 0 && daily.subtractions === 0)) {
+                        return <span className="text-ink-soft">—</span>;
+                      }
+                      return (
+                        <span className="whitespace-nowrap">
+                          {daily.additions > 0 && (
+                            <span className="text-accent">+{daily.additions.toLocaleString("en-IN")}</span>
+                          )}
+                          {daily.additions > 0 && daily.subtractions > 0 && (
+                            <span className="text-ink-soft"> / </span>
+                          )}
+                          {daily.subtractions > 0 && (
+                            <span className="text-alert">−{daily.subtractions.toLocaleString("en-IN")}</span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </td>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-ink-soft">
+                <td colSpan={7} className="px-3 py-8 text-center text-ink-soft">
                   No holdings match “{query}”.
                 </td>
               </tr>

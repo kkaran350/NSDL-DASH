@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Holding, QuantityDelta } from "@/lib/types";
-import { appendSnapshot, loadHistory, computeDeltas } from "@/lib/snapshot";
+import { Holding, QuantityDelta, DailyChange } from "@/lib/types";
+import { appendSnapshot, loadHistory, computeDeltas, computeDailyChanges } from "@/lib/snapshot";
 import SyncStamp from "./SyncStamp";
 import SummaryCards from "./SummaryCards";
 import TopHoldingsChart from "./TopHoldingsChart";
@@ -14,6 +14,7 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository re
 export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [deltas, setDeltas] = useState<QuantityDelta[]>([]);
+  const [dailyChanges, setDailyChanges] = useState<DailyChange[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,9 @@ export default function Dashboard() {
       setDeltas(newDeltas);
       setLastSyncedAt(json.fetchedAt);
       setError(null);
+
+      const historyBeforeThisFetch = loadHistory();
+      setDailyChanges(computeDailyChanges(historyBeforeThisFetch, nextHoldings));
       appendSnapshot(nextHoldings);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -91,14 +95,14 @@ export default function Dashboard() {
       )}
 
       <div className="space-y-6">
-        <SummaryCards holdings={holdings} />
+        <SummaryCards holdings={holdings} dailyChanges={dailyChanges} />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <TopHoldingsChart holdings={holdings} />
           <AllocationChart holdings={holdings} />
         </div>
 
-        <HoldingsTable holdings={holdings} deltas={deltas} />
+        <HoldingsTable holdings={holdings} deltas={deltas} dailyChanges={dailyChanges} />
       </div>
 
       <footer className="mt-8 text-xs text-ink-soft">

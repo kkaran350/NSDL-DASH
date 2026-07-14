@@ -18,3 +18,9 @@ export interface QuantityDelta {
   currentQuantity: number;
   change: number;
 }
+export interface DailyChange {
+  isin: string;
+  additions: number;
+  subtractions: number;
+  net: number;
+}
