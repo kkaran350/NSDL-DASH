@@ -1,10 +1,50 @@
+/* Base palette (light mode, default green accent). Overridden below by
+   [data-theme="dark"] and [data-accent="..."] attributes set on <html>
+   by the theme toggle. Values are space-separated RGB triples so
+   Tailwind's rgb(var(--x) / <alpha-value>) pattern can apply opacity. */
+:root {
+  --color-paper: 238 240 234;
+  --color-paper-raised: 248 249 245;
+  --color-ink: 26 42 38;
+  --color-ink-soft: 75 90 85;
+  --color-border: 217 214 200;
+  --color-gold: 169 130 60;
+  --color-alert: 173 68 54;
+  --color-alert-soft: 243 227 223;
+  --color-accent: 47 111 94;
+  --color-accent-soft: 220 231 225;
+}
+
+[data-theme="dark"] {
+  --color-paper: 20 26 24;
+  --color-paper-raised: 28 36 33;
+  --color-ink: 230 232 226;
+  --color-ink-soft: 150 160 152;
+  --color-border: 55 65 60;
+  --color-gold: 214 170 100;
+  --color-alert: 224 120 100;
+  --color-alert-soft: 60 36 32;
+}
+
+/* Accent presets — light mode */
+[data-accent="green"] { --color-accent: 47 111 94; --color-accent-soft: 220 231 225; }
+[data-accent="gold"]  { --color-accent: 169 130 60; --color-accent-soft: 237 227 208; }
+[data-accent="blue"]  { --color-accent: 58 90 138; --color-accent-soft: 220 227 238; }
+[data-accent="rust"]  { --color-accent: 173 90 58; --color-accent-soft: 238 222 213; }
+
+/* Accent presets — dark mode (overrides the light ones above via source order) */
+[data-theme="dark"][data-accent="green"] { --color-accent: 90 176 152; --color-accent-soft: 40 60 54; }
+[data-theme="dark"][data-accent="gold"]  { --color-accent: 214 170 100; --color-accent-soft: 58 48 30; }
+[data-theme="dark"][data-accent="blue"]  { --color-accent: 120 160 214; --color-accent-soft: 32 42 58; }
+[data-theme="dark"][data-accent="rust"]  { --color-accent: 214 130 100; --color-accent-soft: 58 38 30; }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-body;
+    @apply bg-paper text-ink font-body transition-colors duration-200;
   }
 
   ::selection {

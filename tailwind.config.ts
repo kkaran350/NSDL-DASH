@@ -8,17 +8,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#EEF0EA",
-        "paper-raised": "#F8F9F5",
-        ink: "#1A2A26",
-        "ink-soft": "#4B5A55",
-        accent: "#2F6F5E",
-        "accent-soft": "#DCE7E1",
-        gold: "#A9823C",
-        alert: "#AD4436",
-        "alert-soft": "#F3E3DF",
-        border: "#D9D6C8",
-      },
+      paper: "rgb(var(--color-paper) / <alpha-value>)",
+      "paper-raised": "rgb(var(--color-paper-raised) / <alpha-value>)",
+      ink: "rgb(var(--color-ink) / <alpha-value>)",
+      "ink-soft": "rgb(var(--color-ink-soft) / <alpha-value>)",
+      accent: "rgb(var(--color-accent) / <alpha-value>)",
+      "accent-soft": "rgb(var(--color-accent-soft) / <alpha-value>)",
+      gold: "rgb(var(--color-gold) / <alpha-value>)",
+      alert: "rgb(var(--color-alert) / <alpha-value>)",
+      "alert-soft": "rgb(var(--color-alert-soft) / <alpha-value>)",
+      border: "rgb(var(--color-border) / <alpha-value>)",
+    },
       fontFamily: {
         display: ["var(--font-fraunces)", "serif"],
         body: ["var(--font-plex-sans)", "sans-serif"],
