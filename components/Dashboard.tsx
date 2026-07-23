@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Holding, DailyChange } from "@/lib/types";
 import { appendSnapshot, loadHistory, computeDailyChanges } from "@/lib/snapshot";
-import { isSheetDataSane } from "@/lib/validate";
+import { isSheetDataSane, isPlausibleIsin } from "@/lib/validate";
 import {
   ThemeMode,
   AccentKey,
@@ -58,14 +58,21 @@ export default function Dashboard() {
         return;
       }
 
-      previousHoldingsRef.current = nextHoldings;
-      setHoldings(nextHoldings);
+      // The sheet repeats its header row partway down, which otherwise
+      // lands in the ledger as a row reading "ISIN / Description / …" and
+      // inflates the company count. Drop anything whose first column isn't
+      // a real ISIN — after the sanity check above, so that check still
+      // sees the raw shape of the read.
+      const cleanHoldings = nextHoldings.filter((h) => isPlausibleIsin(h.isin));
+
+      previousHoldingsRef.current = cleanHoldings;
+      setHoldings(cleanHoldings);
       setLastSyncedAt(json.fetchedAt);
       setError(null);
 
       const historyBeforeThisFetch = loadHistory();
-      setDailyChanges(computeDailyChanges(historyBeforeThisFetch, nextHoldings));
-      appendSnapshot(nextHoldings);
+      setDailyChanges(computeDailyChanges(historyBeforeThisFetch, cleanHoldings));
+      appendSnapshot(cleanHoldings);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
