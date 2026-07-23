@@ -1,30 +1,41 @@
 import type { Metadata } from "next";
-import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Schibsted_Grotesk, Manrope, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
+const schibsted = Schibsted_Grotesk({
   subsets: ["latin"],
-  weight: ["500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-fraunces",
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-display",
 });
 
-const plexSans = IBM_Plex_Sans({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-sans",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-body",
 });
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-plex-mono",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Holdings Ledger — Depository Dashboard",
+  title: "Holdings Ledger — NSDL SPEED-e",
   description: "Live depository holdings by quantity, refreshed every 5 minutes.",
 };
+
+/**
+ * Applies the saved theme to <html> before first paint, so a dark-mode user
+ * doesn't get a white flash on every navigation. Keep the storage key in
+ * sync with THEME_KEY in lib/theme.ts.
+ */
+const NO_FLASH_SCRIPT = `
+try {
+  var t = localStorage.getItem("holdings-dashboard:theme");
+  if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
+} catch (e) {}
+`;
 
 export default function RootLayout({
   children,
@@ -32,9 +43,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
+      </head>
       <body
-        className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable}`}
+        className={`${schibsted.variable} ${manrope.variable} ${plexMono.variable}`}
       >
         {children}
       </body>

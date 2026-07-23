@@ -1,44 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE, isAuthConfigured, safeEqual, sessionToken } from "@/lib/auth";
 
 /**
- * Simple site-wide Basic Auth gate. Set APP_USERNAME and APP_PASSWORD as
- * environment variables (locally in .env.local, and in Vercel's Project
- * Settings → Environment Variables for the deployed site). If either is
- * unset, the site is left open — that's deliberate so a missing env var
- * doesn't quietly lock out local development, but it does mean auth is
- * OFF until both are set.
+ * Site-wide login gate. Set APP_USERNAME and APP_PASSWORD as environment
+ * variables (locally in .env.local, and in Vercel's Project Settings →
+ * Environment Variables for the deployed site). If either is unset, the site
+ * is left open — that's deliberate so a missing env var doesn't quietly lock
+ * out local development, but it does mean auth is OFF until both are set.
+ *
+ * Anyone without a valid session cookie is redirected to /login, which posts
+ * to /api/login to exchange those same credentials for the cookie. (This
+ * replaces the old Basic Auth prompt — same credentials, real sign-in form.)
  */
-export function middleware(req: NextRequest) {
-  const username = process.env.APP_USERNAME;
-  const password = process.env.APP_PASSWORD;
+const PUBLIC_PATHS = ["/login", "/api/login", "/api/logout"];
 
-  if (!username || !password) {
+export async function middleware(req: NextRequest) {
+  if (!isAuthConfigured()) {
     return NextResponse.next();
   }
 
-  const authHeader = req.headers.get("authorization");
-
-  if (authHeader?.startsWith("Basic ")) {
-    const encoded = authHeader.slice("Basic ".length);
-    try {
-      const decoded = atob(encoded);
-      const separatorIndex = decoded.indexOf(":");
-      const user = decoded.slice(0, separatorIndex);
-      const pass = decoded.slice(separatorIndex + 1);
-      if (user === username && pass === password) {
-        return NextResponse.next();
-      }
-    } catch {
-      // fall through to 401 below
-    }
+  const { pathname } = req.nextUrl;
+  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return NextResponse.next();
   }
 
-  return new NextResponse("Authentication required.", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Holdings Ledger", charset="UTF-8"',
-    },
-  });
+  const cookie = req.cookies.get(SESSION_COOKIE)?.value;
+  if (cookie && safeEqual(cookie, await sessionToken())) {
+    return NextResponse.next();
+  }
+
+  // Bouncing an API call to /login would hand the caller an HTML page where
+  // it expected JSON — give it a 401 instead and let the UI deal with it.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  const loginUrl = req.nextUrl.clone();
+  loginUrl.pathname = "/login";
+  loginUrl.search = "";
+  if (pathname !== "/") loginUrl.searchParams.set("next", pathname);
+
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

@@ -20,12 +20,9 @@ const config: Config = {
       border: "rgb(var(--color-border) / <alpha-value>)",
     },
       fontFamily: {
-        display: ["var(--font-fraunces)", "serif"],
-        body: ["var(--font-plex-sans)", "sans-serif"],
-        mono: ["var(--font-plex-mono)", "monospace"],
-      },
-      borderRadius: {
-        DEFAULT: "2px",
+        display: ["var(--font-display)", "sans-serif"],
+        body: ["var(--font-body)", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
       },
     },
   },

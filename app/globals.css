@@ -1,7 +1,7 @@
-/* Base palette (light mode, default green accent). Overridden below by
-   [data-theme="dark"] and [data-accent="..."] attributes set on <html>
-   by the theme toggle. Values are space-separated RGB triples so
-   Tailwind's rgb(var(--x) / <alpha-value>) pattern can apply opacity. */
+/* Legacy palette tokens — still referenced by tailwind.config.ts's colour
+   aliases (bg-paper, text-ink, …). The redesigned screens use the --hl-*
+   tokens below instead, but these stay so any leftover utility class keeps
+   resolving to something sane. */
 :root {
   --color-paper: 238 240 234;
   --color-paper-raised: 248 249 245;
@@ -26,17 +26,109 @@
   --color-alert-soft: 60 36 32;
 }
 
-/* Accent presets — light mode */
-[data-accent="green"] { --color-accent: 47 111 94; --color-accent-soft: 220 231 225; }
-[data-accent="gold"]  { --color-accent: 169 130 60; --color-accent-soft: 237 227 208; }
-[data-accent="blue"]  { --color-accent: 58 90 138; --color-accent-soft: 220 227 238; }
-[data-accent="rust"]  { --color-accent: 173 90 58; --color-accent-soft: 238 222 213; }
+/* ---------------------------------------------------------------------
+   Holdings Ledger design tokens.
 
-/* Accent presets — dark mode (overrides the light ones above via source order) */
-[data-theme="dark"][data-accent="green"] { --color-accent: 90 176 152; --color-accent-soft: 40 60 54; }
-[data-theme="dark"][data-accent="gold"]  { --color-accent: 214 170 100; --color-accent-soft: 58 48 30; }
-[data-theme="dark"][data-accent="blue"]  { --color-accent: 120 160 214; --color-accent-soft: 32 42 58; }
-[data-theme="dark"][data-accent="rust"]  { --color-accent: 214 130 100; --color-accent-soft: 58 38 30; }
+   Light is the emerald palette, dark shifts to a cool blue. Gradients and
+   shadows live in variables rather than Tailwind classes because they're
+   multi-layer values the theme swaps wholesale.
+   ------------------------------------------------------------------- */
+:root {
+  --hl-bg: #f6f9f6;
+  --hl-g1: rgba(46, 125, 91, 0.14);
+  --hl-g2: rgba(176, 196, 171, 0.22);
+
+  --hl-accent: #1f7a4d;
+  --hl-accent-hover: #145536;
+  --hl-accent-tint: 31, 122, 77;
+  --hl-title: #177a48;
+
+  --hl-sub: #5f7a6c;
+  --hl-strong: #12291f;
+  --hl-text: #17362a;
+  --hl-muted: #8ba396;
+  --hl-val: #3d5a4c;
+  --hl-red: #9c3c2e;
+  --hl-up: #00b04f;
+  --hl-down: #d64530;
+
+  /* Frosted "pill" surfaces — stat cards, header chips, icon buttons */
+  --hl-panel-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.4));
+  --hl-panel-border: rgba(255, 255, 255, 0.65);
+  --hl-panel-shadow: 0 8px 32px rgba(23, 54, 42, 0.13),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.35);
+
+  /* The large ledger surface */
+  --hl-table-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.46));
+  --hl-table-border: rgba(255, 255, 255, 0.7);
+  --hl-table-shadow: 0 24px 60px rgba(23, 54, 42, 0.16),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+
+  --hl-line: rgba(23, 54, 42, 0.08);
+  --hl-row-line: rgba(23, 54, 42, 0.06);
+  --hl-row-hover: rgba(31, 122, 77, 0.06);
+  --hl-head-solid: #f2f6f2;
+  --hl-menu-bg: rgba(252, 254, 252, 0.94);
+
+  --hl-input-bg: rgba(255, 255, 255, 0.7);
+  --hl-input-border: rgba(23, 54, 42, 0.12);
+  --hl-input-focus-bg: #ffffff;
+  --hl-focus-ring: 0 0 0 3px rgba(31, 122, 77, 0.12);
+
+  /* Login screen */
+  --hl-card: #ffffff;
+  --hl-tile: #f2f6f2;
+  --hl-card-border: rgba(23, 54, 42, 0.1);
+  --hl-btn-bg: linear-gradient(135deg, #2a9764, #177a48);
+  --hl-btn-shadow: 0 10px 24px rgba(31, 122, 77, 0.35);
+  --hl-btn-shadow-hover: 0 14px 30px rgba(31, 122, 77, 0.45);
+}
+
+[data-theme="dark"] {
+  --hl-bg: #0b1117;
+  --hl-g1: rgba(124, 196, 255, 0.12);
+  --hl-g2: rgba(90, 140, 200, 0.18);
+
+  --hl-accent: #7cc4ff;
+  --hl-accent-hover: #a8d8ff;
+  --hl-accent-tint: 124, 196, 255;
+  --hl-title: #8fe6b4;
+
+  --hl-sub: #a3b4c2;
+  --hl-strong: #f4f7fa;
+  --hl-text: #e2e9ef;
+  --hl-muted: #7e8e9d;
+  --hl-val: #bdd0de;
+  --hl-red: #ff8f76;
+  --hl-up: #7cc4ff;
+  --hl-down: #ff8f76;
+
+  --hl-panel-bg: linear-gradient(135deg, rgba(124, 196, 255, 0.13), rgba(255, 255, 255, 0.03));
+  --hl-panel-border: rgba(255, 255, 255, 0.14);
+  --hl-panel-shadow: 0 10px 36px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.16), inset 0 0 24px rgba(124, 196, 255, 0.05);
+
+  --hl-table-bg: linear-gradient(160deg, rgba(124, 196, 255, 0.09), rgba(255, 255, 255, 0.02));
+  --hl-table-border: rgba(255, 255, 255, 0.12);
+  --hl-table-shadow: 0 28px 70px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.14);
+
+  --hl-line: rgba(255, 255, 255, 0.09);
+  --hl-row-line: rgba(255, 255, 255, 0.06);
+  --hl-row-hover: rgba(124, 196, 255, 0.07);
+  --hl-head-solid: #131a20;
+  --hl-menu-bg: rgba(19, 26, 32, 0.96);
+
+  --hl-input-bg: rgba(0, 0, 0, 0.28);
+  --hl-input-border: rgba(255, 255, 255, 0.16);
+  --hl-input-focus-bg: rgba(0, 0, 0, 0.38);
+  --hl-focus-ring: 0 0 0 3px rgba(124, 196, 255, 0.18);
+
+  --hl-card: #131a20;
+  --hl-tile: #1a232b;
+  --hl-card-border: rgba(255, 255, 255, 0.12);
+  --hl-btn-shadow: 0 10px 24px rgba(23, 122, 72, 0.35);
+  --hl-btn-shadow-hover: 0 14px 30px rgba(23, 122, 72, 0.45);
+}
 
 @tailwind base;
 @tailwind components;
@@ -44,11 +136,23 @@
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-body transition-colors duration-200;
+    background-color: var(--hl-bg);
+    background-image: radial-gradient(900px 500px at 12% -5%, var(--hl-g1), transparent 60%),
+      radial-gradient(700px 420px at 88% 8%, var(--hl-g2), transparent 55%),
+      radial-gradient(800px 600px at 50% 110%, var(--hl-g1), transparent 60%);
+    background-attachment: fixed;
+    color: var(--hl-text);
+    @apply font-body;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   ::selection {
-    @apply bg-accent-soft;
+    background: var(--hl-accent);
+    color: #fff;
+  }
+
+  input::placeholder {
+    color: var(--hl-muted);
   }
 }
 
@@ -58,23 +162,232 @@
   }
 }
 
-/* Subtle live-sync pulse for the stamp indicator */
-@keyframes stamp-pulse {
+/* --- Shared surfaces ------------------------------------------------- */
+
+.hl-panel {
+  background: var(--hl-panel-bg);
+  border: 1px solid var(--hl-panel-border);
+  box-shadow: var(--hl-panel-shadow);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+}
+
+.hl-table-panel {
+  background: var(--hl-table-bg);
+  border: 1px solid var(--hl-table-border);
+  box-shadow: var(--hl-table-shadow);
+  backdrop-filter: blur(34px) saturate(1.8);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8);
+}
+
+/* Circular header buttons — refresh, theme, stats chevron */
+.hl-icon-btn {
+  color: var(--hl-accent);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+.hl-icon-btn:hover:not(:disabled) {
+  background: rgba(var(--hl-accent-tint), 0.12);
+  color: var(--hl-accent-hover);
+}
+.hl-icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.hl-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hl-menu-btn {
+  color: var(--hl-accent);
+  cursor: pointer;
+  transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.2s ease;
+}
+.hl-menu-btn:hover {
+  border-color: var(--hl-accent);
+}
+.hl-menu-btn:active {
+  transform: scale(0.95);
+}
+.hl-menu-btn[data-open="true"] {
+  border-color: var(--hl-accent);
+  animation: hl-btnfloat 2.4s ease-in-out infinite;
+}
+
+.hl-zoho-btn {
+  background: linear-gradient(135deg, #5eb8ff 0%, #2f7cf6 55%, #1d4ed8 100%);
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.55), 0 5px 14px rgba(47, 124, 246, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.hl-zoho-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.55), 0 8px 18px rgba(47, 124, 246, 0.5);
+}
+.hl-zoho-btn:active {
+  transform: scale(0.94);
+}
+
+.hl-logout-btn {
+  background: rgba(200, 60, 40, 0.12);
+  color: var(--hl-red);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+.hl-logout-btn:hover {
+  background: rgba(200, 60, 40, 0.22);
+}
+.hl-logout-btn:active {
+  transform: scale(0.94);
+}
+
+/* --- Ledger ---------------------------------------------------------- */
+
+.hl-row {
+  transition: background 0.15s ease;
+}
+.hl-row:hover {
+  background: var(--hl-row-hover);
+}
+
+.hl-col-btn {
+  color: var(--hl-sub);
+  transition: color 0.15s ease;
+}
+.hl-col-btn:hover {
+  color: var(--hl-accent);
+}
+.hl-col-btn[data-active="true"] {
+  color: var(--hl-strong);
+}
+
+.hl-input {
+  background: var(--hl-input-bg);
+  border: 1px solid var(--hl-input-border);
+  color: var(--hl-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.hl-input:focus {
+  border-color: var(--hl-accent);
+  background: var(--hl-input-focus-bg);
+  box-shadow: var(--hl-focus-ring);
+}
+
+.hl-chip {
+  border: 1px solid var(--hl-input-border);
+  background: transparent;
+  color: var(--hl-sub);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.hl-chip:hover {
+  border-color: var(--hl-accent);
+}
+.hl-chip[data-on="true"] {
+  border-color: var(--hl-accent);
+  background: var(--hl-accent);
+  color: #fff;
+}
+[data-theme="dark"] .hl-chip[data-on="true"] {
+  color: #0b1117;
+}
+
+/* Thin, unobtrusive scrollbar for the ledger body */
+.hl-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 150, 135, 0.35) transparent;
+}
+.hl-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.hl-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hl-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120, 150, 135, 0.35);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.hl-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 150, 135, 0.55);
+}
+
+/* --- Login ----------------------------------------------------------- */
+
+.hl-signin-btn {
+  background: var(--hl-btn-bg);
+  box-shadow: var(--hl-btn-shadow);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+.hl-signin-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--hl-btn-shadow-hover);
+}
+.hl-signin-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.hl-signin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hl-tile-btn {
+  background: var(--hl-tile);
+  border: 1px solid var(--hl-card-border);
+  color: var(--hl-accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.1s ease;
+}
+.hl-tile-btn:hover {
+  border-color: var(--hl-accent);
+}
+.hl-tile-btn:active {
+  transform: scale(0.94);
+}
+
+/* --- Animations ------------------------------------------------------ */
+
+@keyframes hl-pulse {
   0%,
   100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.45;
+    opacity: 0.35;
   }
 }
 
-.stamp-dot {
-  animation: stamp-pulse 2.4s ease-in-out infinite;
+@keyframes hl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hl-btnfloat {
+  0%,
+  100% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.hl-pulse {
+  animation: hl-pulse 2s infinite;
+}
+
+.hl-spin {
+  animation: hl-spin 1s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stamp-dot {
+  .hl-pulse,
+  .hl-spin,
+  .hl-menu-btn[data-open="true"] {
     animation: none;
   }
 }

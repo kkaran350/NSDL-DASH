@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Holding, QuantityDelta, DailyChange } from "@/lib/types";
-import { appendSnapshot, loadHistory, computeDeltas, computeDailyChanges } from "@/lib/snapshot";
+import { Holding, DailyChange } from "@/lib/types";
+import { appendSnapshot, loadHistory, computeDailyChanges } from "@/lib/snapshot";
 import { isSheetDataSane } from "@/lib/validate";
 import {
   ThemeMode,
@@ -10,33 +10,35 @@ import {
   loadThemePrefs,
   saveThemePrefs,
   applyThemeToDocument,
-  getChartColors,
 } from "@/lib/theme";
 import SyncStamp from "./SyncStamp";
 import ThemeToggle from "./ThemeToggle";
 import SummaryCards from "./SummaryCards";
-// import TopHoldingsChart from "./TopHoldingsChart";
-// import AllocationChart from "./AllocationChart";
 import HoldingsTable from "./HoldingsTable";
+import AccountMenu from "./AccountMenu";
+import { ChevronDownIcon, RefreshIcon } from "./icons";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
 const REFRESH_COOLDOWN_MS = 20 * 1000; // minimum gap between manual refreshes
 
+const ORG_NAME = process.env.NEXT_PUBLIC_ORG_NAME ?? "Mittal Portfolios Pvt. Ltd.";
+
 export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [deltas, setDeltas] = useState<QuantityDelta[]>([]);
   const [dailyChanges, setDailyChanges] = useState<DailyChange[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [statsOpen, setStatsOpen] = useState(true);
 
   const [theme, setTheme] = useState<ThemeMode>("light");
+  // The redesign is light/dark only — accent is carried through untouched so
+  // the saved preference still round-trips.
   const [accent, setAccent] = useState<AccentKey>("green");
 
   const previousHoldingsRef = useRef<Holding[] | undefined>(undefined);
-  const lastFetchAtRef = useRef<number>(0);
 
   const fetchData = useCallback(async () => {
     setIsSyncing(true);
@@ -56,11 +58,8 @@ export default function Dashboard() {
         return;
       }
 
-      const newDeltas = computeDeltas(previousHoldingsRef.current, nextHoldings);
-
       previousHoldingsRef.current = nextHoldings;
       setHoldings(nextHoldings);
-      setDeltas(newDeltas);
       setLastSyncedAt(json.fetchedAt);
       setError(null);
 
@@ -72,7 +71,6 @@ export default function Dashboard() {
     } finally {
       setIsSyncing(false);
       setCountdown(POLL_INTERVAL_MS / 1000);
-      lastFetchAtRef.current = Date.now();
     }
   }, []);
 
@@ -102,13 +100,14 @@ export default function Dashboard() {
     return () => clearInterval(tick);
   }, []);
 
-  // Load saved theme/accent once on mount (the blocking script in layout.tsx
-  // already applied them to <html> before paint — this just syncs React
-  // state so components like ThemeToggle and the charts know what's active).
+  // The blocking script in layout.tsx already applied the saved theme to
+  // <html> before paint — this syncs React state so the toggle knows which
+  // icon to show, and re-applies in case an accent was saved too.
   useEffect(() => {
     const prefs = loadThemePrefs();
     setTheme(prefs.theme);
     setAccent(prefs.accent);
+    applyThemeToDocument(prefs.theme, prefs.accent);
   }, []);
 
   function handleThemeChange(next: ThemeMode) {
@@ -117,25 +116,36 @@ export default function Dashboard() {
     saveThemePrefs(next, accent);
   }
 
-  function handleAccentChange(next: AccentKey) {
-    setAccent(next);
-    applyThemeToDocument(theme, next);
-    saveThemePrefs(theme, next);
-  }
-
-  const chartColors = getChartColors(theme, accent);
-
   return (
-    <div className="min-h-screen px-5 py-8 sm:px-10">
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="font-mono text-xs uppercase tracking-widest text-ink-soft">
-            Depository Holdings
+    <div className="mx-auto flex min-h-screen max-w-[1560px] flex-col gap-4 px-5 pb-6 pt-[22px] sm:px-9 lg:h-screen lg:min-h-0 lg:overflow-hidden">
+      <header className="flex flex-none flex-col gap-4 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+        <div className="flex items-center gap-4">
+          <AccountMenu />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <span
+                className="inline-block h-0.5 w-5 rounded-sm"
+                style={{ background: "var(--hl-accent)" }}
+              />
+              <span
+                className="text-[10px] font-bold tracking-[0.3em]"
+                style={{ color: "var(--hl-sub)" }}
+              >
+                NSDL · SPEED-e
+              </span>
+            </div>
+            <h1
+              className="mt-[3px] font-display text-2xl font-extrabold leading-[1.08] tracking-[-0.025em] sm:text-[30px]"
+              style={{
+                color: "var(--hl-title)",
+                textShadow: "0 6px 16px rgba(0,0,0,.15)",
+              }}
+            >
+              {ORG_NAME} Holdings
+            </h1>
           </div>
-          <h1 className="font-display text-3xl italic text-ink sm:text-4xl">
-            Holdings Ledger
-          </h1>
         </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <SyncStamp
             lastSyncedAt={lastSyncedAt}
@@ -143,54 +153,52 @@ export default function Dashboard() {
             isSyncing={isSyncing}
             error={error}
           />
+
           <button
             onClick={handleForceRefresh}
             disabled={isSyncing || cooldownRemaining > 0}
-            className="rounded border border-accent px-3 py-2 font-mono text-xs uppercase tracking-wider text-accent transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
+            title={cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s` : "Force refresh"}
+            aria-label="Force refresh"
+            className="hl-panel hl-icon-btn flex h-[46px] w-[46px] items-center justify-center rounded-full"
           >
-            {isSyncing
-              ? "Refreshing…"
-              : cooldownRemaining > 0
-              ? `Wait ${cooldownRemaining}s`
-              : "Force refresh"}
+            {cooldownRemaining > 0 ? (
+              <span className="tabular text-[15px] font-extrabold">
+                {cooldownRemaining}
+              </span>
+            ) : (
+              <RefreshIcon className={isSyncing ? "hl-spin" : undefined} />
+            )}
           </button>
-          <ThemeToggle
-            theme={theme}
-            accent={accent}
-            onThemeChange={handleThemeChange}
-            onAccentChange={handleAccentChange}
-          />
+
+          <ThemeToggle theme={theme} onThemeChange={handleThemeChange} />
+
           <button
-            onClick={async () => {
-              await fetch("/api/logout", { method: "POST" });
-              window.location.href = "/login";
-            }}
-            className="rounded border border-border px-3 py-2 font-mono text-xs uppercase tracking-wider text-ink-soft transition hover:border-alert hover:text-alert"
+            onClick={() => setStatsOpen((o) => !o)}
+            title={statsOpen ? "Hide stats" : "Show stats"}
+            aria-label={statsOpen ? "Hide stats" : "Show stats"}
+            aria-expanded={statsOpen}
+            className="hl-panel hl-icon-btn flex h-[46px] w-[46px] items-center justify-center rounded-full"
           >
-            Log out
+            <ChevronDownIcon
+              className="transition-transform duration-200"
+              style={{ transform: statsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+            />
           </button>
         </div>
       </header>
 
       {error && (
-        <div className="mb-6 rounded border border-alert bg-alert-soft px-4 py-3 text-sm text-alert">
+        <div
+          className="hl-panel flex-none rounded-2xl px-4 py-3 text-[12.5px]"
+          style={{ color: "var(--hl-red)" }}
+        >
           {error}
         </div>
       )}
 
-      <div className="space-y-6">
-        <SummaryCards holdings={holdings} dailyChanges={dailyChanges} />
+      {statsOpen && <SummaryCards holdings={holdings} dailyChanges={dailyChanges} />}
 
-       
-
-        <HoldingsTable holdings={holdings} deltas={deltas} dailyChanges={dailyChanges} />
-      </div>
-
-      <footer className="mt-8 text-xs text-ink-soft">
-        Quantity-change tracking builds up from this browser’s own polling
-        history (stored locally) — it resets if you clear site data, and
-        won’t carry across devices until a shared datastore is wired in.
-      </footer>
+      <HoldingsTable holdings={holdings} dailyChanges={dailyChanges} />
     </div>
   );
 }

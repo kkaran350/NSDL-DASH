@@ -9,11 +9,9 @@ interface SyncStampProps {
 
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-IN", {
+  return new Date(iso).toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   });
 }
 
@@ -33,24 +31,32 @@ export default function SyncStamp({
   isSyncing,
   error,
 }: SyncStampProps) {
+  const label = error
+    ? "SYNC FAILED"
+    : isSyncing
+    ? "SYNCING…"
+    : `LAST SYNC ${formatTime(lastSyncedAt)}`;
+
   return (
-    <div className="flex items-center gap-3 rounded border border-border bg-paper-raised px-4 py-2">
-      <div className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-accent">
+    <div className="hl-panel flex items-center gap-2.5 rounded-full px-3.5 py-2">
+      <span
+        className="hl-pulse h-2 w-2 flex-none rounded-full"
+        style={{ background: error ? "var(--hl-red)" : "var(--hl-accent)" }}
+      />
+      <div className="text-[11.5px] leading-[1.45]">
         <span
-          className={`h-2.5 w-2.5 rounded-full ${
-            error ? "bg-alert" : "bg-accent"
-          } ${isSyncing ? "" : "stamp-dot"}`}
-        />
-      </div>
-      <div className="font-mono text-xs leading-tight">
-        <div className="tracking-wide text-ink-soft">
-          {error ? "SYNC FAILED" : isSyncing ? "SYNCING…" : "DEPOSITORY SYNCED"}
-        </div>
-        <div className="tabular text-ink">
-          {formatTime(lastSyncedAt)}
-          <span className="mx-1.5 text-ink-soft">·</span>
-          next in {formatCountdown(nextSyncInSeconds)}
-        </div>
+          className="font-semibold tracking-[0.12em]"
+          style={{ color: "var(--hl-sub)" }}
+        >
+          {label}
+        </span>
+        <br />
+        <span style={{ color: "var(--hl-text)" }}>
+          next in{" "}
+          <span className="tabular font-bold">
+            {formatCountdown(nextSyncInSeconds)}
+          </span>
+        </span>
       </div>
     </div>
   );
