@@ -8,6 +8,8 @@ import { SearchIcon } from "./icons";
 interface HoldingsTableProps {
   holdings: Holding[];
   dailyChanges: DailyChange[];
+  /** Per-ISIN ISO timestamp of the last quantity change this browser saw. */
+  changeTimes: Record<string, string>;
 }
 
 type SortKey = "isin" | "description" | "date" | "quantity" | "faceValue" | "today";
@@ -37,6 +39,16 @@ function splitDateTime(raw: string): { date: string; time: string } {
   return { date: value, time: "" };
 }
 
+/** Turn an ISO timestamp into a short "3:59 pm" for the change stamp. */
+function formatChangeTime(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d
+    .toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })
+    .toLowerCase();
+}
+
 function formatQty(n: number): string {
   return Math.round(n).toLocaleString("en-IN");
 }
@@ -54,7 +66,11 @@ function formatFaceValue(price: number): string {
   return `₹${shown}/-`;
 }
 
-export default function HoldingsTable({ holdings, dailyChanges }: HoldingsTableProps) {
+export default function HoldingsTable({
+  holdings,
+  dailyChanges,
+  changeTimes,
+}: HoldingsTableProps) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("quantity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -73,6 +89,7 @@ export default function HoldingsTable({ holdings, dailyChanges }: HoldingsTableP
       return {
         holding: h,
         ...splitDateTime(h.lastTransactionDate),
+        changedAt: formatChangeTime(changeTimes[h.isin]),
         today: daily ? daily.net : 0,
       };
     });
@@ -105,7 +122,7 @@ export default function HoldingsTable({ holdings, dailyChanges }: HoldingsTableP
     };
 
     return [...list].sort((a, b) => (sortDir === "asc" ? compare(a, b) : -compare(a, b)));
-  }, [holdings, dailyMap, query, sortKey, sortDir, hideZero]);
+  }, [holdings, dailyMap, changeTimes, query, sortKey, sortDir, hideZero]);
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -221,13 +238,25 @@ export default function HoldingsTable({ holdings, dailyChanges }: HoldingsTableP
                   style={{ color: "var(--hl-sub)" }}
                 >
                   {row.date || "—"}
-                  {row.time && (
+                  {/* Prefer a time carried in the sheet's date cell; otherwise
+                      show when this browser last saw the quantity move. */}
+                  {row.time ? (
                     <div
                       className="tabular text-[10.5px]"
                       style={{ color: "var(--hl-muted)" }}
                     >
                       {row.time}
                     </div>
+                  ) : (
+                    row.changedAt && (
+                      <div
+                        className="tabular text-[10.5px]"
+                        style={{ color: "var(--hl-muted)" }}
+                        title="Last quantity change seen by this dashboard"
+                      >
+                        chg {row.changedAt}
+                      </div>
+                    )
                   )}
                 </div>
                 <div

@@ -16,6 +16,7 @@ import ThemeToggle from "./ThemeToggle";
 import SummaryCards from "./SummaryCards";
 import HoldingsTable from "./HoldingsTable";
 import AccountMenu from "./AccountMenu";
+import { ChangeTimes, loadChangeTimes, recordChanges } from "./changeLog";
 import { ChevronDownIcon, RefreshIcon } from "./icons";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
@@ -32,6 +33,8 @@ export default function Dashboard() {
   const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [statsOpen, setStatsOpen] = useState(true);
+  const [changeTimes, setChangeTimes] = useState<ChangeTimes>({});
+  const changeTimesRef = useRef<ChangeTimes>({});
 
   const [theme, setTheme] = useState<ThemeMode>("light");
   // The redesign is light/dark only — accent is carried through untouched so
@@ -65,6 +68,19 @@ export default function Dashboard() {
       // sees the raw shape of the read.
       const cleanHoldings = nextHoldings.filter((h) => isPlausibleIsin(h.isin));
 
+      // Stamp any ISIN whose quantity moved with this fetch's time, so the
+      // ledger can show "when we last saw it change" under the date.
+      const nextTimes = recordChanges(
+        previousHoldingsRef.current,
+        cleanHoldings,
+        json.fetchedAt,
+        changeTimesRef.current
+      );
+      if (nextTimes !== changeTimesRef.current) {
+        changeTimesRef.current = nextTimes;
+        setChangeTimes(nextTimes);
+      }
+
       previousHoldingsRef.current = cleanHoldings;
       setHoldings(cleanHoldings);
       setLastSyncedAt(json.fetchedAt);
@@ -94,6 +110,9 @@ export default function Dashboard() {
     if (history.length > 0) {
       previousHoldingsRef.current = history[history.length - 1].holdings;
     }
+    const savedTimes = loadChangeTimes();
+    changeTimesRef.current = savedTimes;
+    setChangeTimes(savedTimes);
     fetchData();
     const interval = setInterval(fetchData, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -205,7 +224,11 @@ export default function Dashboard() {
 
       {statsOpen && <SummaryCards holdings={holdings} dailyChanges={dailyChanges} />}
 
-      <HoldingsTable holdings={holdings} dailyChanges={dailyChanges} />
+      <HoldingsTable
+        holdings={holdings}
+        dailyChanges={dailyChanges}
+        changeTimes={changeTimes}
+      />
     </div>
   );
 }
