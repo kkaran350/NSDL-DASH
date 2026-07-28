@@ -34,3 +34,16 @@ export function parseLedgerDate(raw: string): number {
 
   return new Date(Number(year), month, Number(day)).getTime();
 }
+
+export function isLedgerDateToday(raw: string): boolean {
+  const timestamp = parseLedgerDate(raw);
+  if (!timestamp) return false;
+
+  const ledgerDate = new Date(timestamp);
+  const now = new Date();
+  return (
+    ledgerDate.getFullYear() === now.getFullYear() &&
+    ledgerDate.getMonth() === now.getMonth() &&
+    ledgerDate.getDate() === now.getDate()
+  );
+}

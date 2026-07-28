@@ -1,6 +1,7 @@
 "use client";
 
 import { Holding, HoldingsSnapshot, QuantityDelta, DailyChange } from "./types";
+import { isLedgerDateToday } from "./dates";
 
 const HISTORY_KEY = "holdings-dashboard:history";
 const MAX_SNAPSHOTS = 288; // 24h of 5-min snapshots
@@ -78,6 +79,7 @@ function isSameLocalDay(a: Date, b: Date): boolean {
  * per ISIN — so a holding that goes up, then down, then up again shows
  * both totals rather than just netting out to a small number.
  */
+
 export function computeDailyChanges(
   history: HoldingsSnapshot[],
   current: Holding[]
@@ -87,7 +89,18 @@ export function computeDailyChanges(
     isSameLocalDay(new Date(s.fetchedAt), now)
   );
 
+  const todaysIsins = new Set(
+    current
+      .filter((h) => isLedgerDateToday(h.lastTransactionDate))
+      .map((h) => h.isin)
+  );
+
+  const lastBeforeToday = history
+    .filter((s) => new Date(s.fetchedAt) < new Date(now.toDateString()))
+    .sort((a, b) => new Date(b.fetchedAt).getTime() - new Date(a.fetchedAt).getTime())[0];
+
   const sequence: HoldingsSnapshot[] = [
+    ...(lastBeforeToday ? [lastBeforeToday] : []),
     ...todaySnapshots,
     { fetchedAt: now.toISOString(), holdings: current },
   ].sort(
@@ -110,10 +123,12 @@ export function computeDailyChanges(
     }
   }
 
-  return Array.from(totals.entries()).map(([isin, v]) => ({
-    isin,
-    additions: v.additions,
-    subtractions: v.subtractions,
-    net: v.additions - v.subtractions,
-  }));
+  return Array.from(totals.entries())
+    .filter(([isin]) => todaysIsins.has(isin))
+    .map(([isin, v]) => ({
+      isin,
+      additions: v.additions,
+      subtractions: v.subtractions,
+      net: v.additions - v.subtractions,
+    }));
 }
