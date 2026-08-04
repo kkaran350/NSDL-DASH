@@ -35,6 +35,16 @@ export function parseLedgerDate(raw: string): number {
   return new Date(Number(year), month, Number(day)).getTime();
 }
 
+export function istDateString(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+
 export function isLedgerDateToday(raw: string): boolean {
   const timestamp = parseLedgerDate(raw);
   if (!timestamp) return false;

@@ -105,6 +105,16 @@ export function EyeOffIcon({ size = 17, className, style }: IconProps) {
   );
 }
 
+export function CloseIcon({ size = 18, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={2.3} className={className} style={style}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+
 /** Zoho's "Z" mark, drawn as a stroke so it inherits the button's white. */
 export function ZohoIcon({ size = 20, className, style }: IconProps) {
   return (

@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Holding, DailyChange } from "@/lib/types";
-import { appendSnapshot, loadHistory, computeDailyChanges } from "@/lib/snapshot";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DailyChange, Holding, TodayMovements } from "@/lib/types";
 import { isSheetDataSane, isPlausibleIsin } from "@/lib/validate";
 import {
   ThemeMode,
@@ -16,79 +15,83 @@ import ThemeToggle from "./ThemeToggle";
 import SummaryCards from "./SummaryCards";
 import HoldingsTable from "./HoldingsTable";
 import AccountMenu from "./AccountMenu";
-import { ChangeTimes, loadChangeTimes, recordChanges } from "./changeLog";
+import MovementsPanel from "./MovementsPanel";
 import { ChevronDownIcon, RefreshIcon } from "./icons";
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
-const REFRESH_COOLDOWN_MS = 20 * 1000; // minimum gap between manual refreshes
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const REFRESH_COOLDOWN_MS = 20 * 1000;
 
 const ORG_NAME = process.env.NEXT_PUBLIC_ORG_NAME ?? "Mittal Portfolios Pvt. Ltd.";
 
 export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [dailyChanges, setDailyChanges] = useState<DailyChange[]>([]);
+  const [todayMovements, setTodayMovements] = useState<TodayMovements | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [statsOpen, setStatsOpen] = useState(true);
-  const [changeTimes, setChangeTimes] = useState<ChangeTimes>({});
-  const changeTimesRef = useRef<ChangeTimes>({});
+  const [openPanel, setOpenPanel] = useState<"additions" | "subtractions" | null>(null);
 
   const [theme, setTheme] = useState<ThemeMode>("light");
-  // The redesign is light/dark only — accent is carried through untouched so
-  // the saved preference still round-trips.
   const [accent, setAccent] = useState<AccentKey>("green");
 
   const previousHoldingsRef = useRef<Holding[] | undefined>(undefined);
 
+  const dailyChanges = useMemo<DailyChange[]>(() => {
+    if (!todayMovements) return [];
+    return todayMovements.byIsin.map((e) => ({
+      isin: e.isin,
+      additions: e.additions,
+      subtractions: e.subtractions,
+      net: e.net,
+    }));
+  }, [todayMovements]);
+
+  const changeTimes = useMemo<Record<string, string>>(() => {
+    const times: Record<string, string> = {};
+    if (!todayMovements) return times;
+    for (const entry of todayMovements.byIsin) {
+      const latest = entry.transactions[entry.transactions.length - 1];
+      if (latest) times[entry.isin] = latest.detectedAt;
+    }
+    return times;
+  }, [todayMovements]);
+
   const fetchData = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch("/api/holdings", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to load holdings");
+      const [holdingsRes, movementsRes] = await Promise.all([
+        fetch("/api/holdings", { cache: "no-store" }),
+        fetch("/api/movements/today", { cache: "no-store" }),
+      ]);
 
-      const nextHoldings: Holding[] = json.holdings;
+      const holdingsJson = await holdingsRes.json();
+      if (!holdingsRes.ok) {
+        throw new Error(holdingsJson.error ?? "Failed to load holdings");
+      }
+
+      const nextHoldings: Holding[] = holdingsJson.holdings;
       const previousCount = previousHoldingsRef.current?.length ?? null;
       const sanity = isSheetDataSane(nextHoldings, previousCount);
 
       if (!sanity.ok) {
-        // Don't let a bad read (e.g. sheet caught mid-write) overwrite a
-        // good dashboard — keep showing the last known-good data instead.
         setError(`Skipped a bad read: ${sanity.reason}. Showing the last good sync.`);
         return;
       }
 
-      // The sheet repeats its header row partway down, which otherwise
-      // lands in the ledger as a row reading "ISIN / Description / …" and
-      // inflates the company count. Drop anything whose first column isn't
-      // a real ISIN — after the sanity check above, so that check still
-      // sees the raw shape of the read.
       const cleanHoldings = nextHoldings.filter((h) => isPlausibleIsin(h.isin));
-
-      // Stamp any ISIN whose quantity moved with this fetch's time, so the
-      // ledger can show "when we last saw it change" under the date.
-      const nextTimes = recordChanges(
-        previousHoldingsRef.current,
-        cleanHoldings,
-        json.fetchedAt,
-        changeTimesRef.current
-      );
-      if (nextTimes !== changeTimesRef.current) {
-        changeTimesRef.current = nextTimes;
-        setChangeTimes(nextTimes);
-      }
 
       previousHoldingsRef.current = cleanHoldings;
       setHoldings(cleanHoldings);
-      setLastSyncedAt(json.fetchedAt);
+      setLastSyncedAt(holdingsJson.fetchedAt);
       setError(null);
 
-      const historyBeforeThisFetch = loadHistory();
-      setDailyChanges(computeDailyChanges(historyBeforeThisFetch, cleanHoldings));
-      appendSnapshot(cleanHoldings);
+      if (movementsRes.ok) {
+        const movementsJson: TodayMovements = await movementsRes.json();
+        setTodayMovements(movementsJson);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -104,15 +107,6 @@ export default function Dashboard() {
   }, [fetchData, cooldownRemaining, isSyncing]);
 
   useEffect(() => {
-    // Seed the previous-quantity baseline from this browser's local history,
-    // if any, so a change shows up even on the very first fetch after reload.
-    const history = loadHistory();
-    if (history.length > 0) {
-      previousHoldingsRef.current = history[history.length - 1].holdings;
-    }
-    const savedTimes = loadChangeTimes();
-    changeTimesRef.current = savedTimes;
-    setChangeTimes(savedTimes);
     fetchData();
     const interval = setInterval(fetchData, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -126,9 +120,6 @@ export default function Dashboard() {
     return () => clearInterval(tick);
   }, []);
 
-  // The blocking script in layout.tsx already applied the saved theme to
-  // <html> before paint — this syncs React state so the toggle knows which
-  // icon to show, and re-applies in case an accent was saved too.
   useEffect(() => {
     const prefs = loadThemePrefs();
     setTheme(prefs.theme);
@@ -222,13 +213,28 @@ export default function Dashboard() {
         </div>
       )}
 
-      {statsOpen && <SummaryCards holdings={holdings} dailyChanges={dailyChanges} />}
+      {statsOpen && (
+        <SummaryCards
+          holdings={holdings}
+          dailyChanges={dailyChanges}
+          onOpenAdditions={() => setOpenPanel("additions")}
+          onOpenSubtractions={() => setOpenPanel("subtractions")}
+        />
+      )}
 
       <HoldingsTable
         holdings={holdings}
         dailyChanges={dailyChanges}
         changeTimes={changeTimes}
       />
+
+      {openPanel && (
+        <MovementsPanel
+          mode={openPanel}
+          movements={todayMovements}
+          onClose={() => setOpenPanel(null)}
+        />
+      )}
     </div>
   );
 }

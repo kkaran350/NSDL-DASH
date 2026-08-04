@@ -1,23 +1,13 @@
 import { Holding } from "./types";
-import { parseCsv, rowsToHoldings } from "./parse";
+import { parseCsv, rowsToHoldings, rowsToMovements, RawMovementRow } from "./parse";
 
 const SHEET_ID = process.env.SHEET_ID;
 const SHEET_GID = process.env.SHEET_GID ?? "0";
 const SHEET_RANGE = process.env.SHEET_RANGE ?? "Sheet1";
 const GOOGLE_SHEETS_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
 const ACCESS_MODE = (process.env.SHEET_ACCESS_MODE ?? "csv").toLowerCase();
+const MOVEMENTS_SHEET_GID = process.env.MOVEMENTS_SHEET_GID;
 
-/**
- * Mode "csv" (default): reads the sheet's published CSV export. Requires
- * the sheet's sharing setting to be "Anyone with the link can view" — no
- * credentials needed. Simplest option to keep the 5-minute poll working
- * without managing a service account.
- *
- * Mode "api": reads via the Google Sheets API v4 with a restricted API key.
- * Needed if the sheet must stay unlisted/link-sharing off, in which case
- * swap to a service account with domain-restricted sharing instead of a
- * bare API key.
- */
 export async function fetchHoldings(): Promise<Holding[]> {
   if (!SHEET_ID) {
     throw new Error(
@@ -64,4 +54,35 @@ async function fetchViaSheetsApi(): Promise<Holding[]> {
 
   const json = (await res.json()) as { values?: string[][] };
   return rowsToHoldings(json.values ?? []);
+}
+
+/**
+ * Reads the "Movements" tab that the Apps Script's doPost writes to
+ * whenever it detects a quantity change ahead of overwriting Sheet1.
+ */
+export async function fetchMovements(): Promise<RawMovementRow[]> {
+  if (!SHEET_ID) {
+    throw new Error(
+      "SHEET_ID is not set. Add it to your environment (see .env.example)."
+    );
+  }
+  if (!MOVEMENTS_SHEET_GID) {
+    throw new Error(
+      "MOVEMENTS_SHEET_GID is not set. Open the Movements tab in the sheet, " +
+        "copy the number after #gid= in the URL, and add it to your environment."
+    );
+  }
+
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${MOVEMENTS_SHEET_GID}`;
+  const res = await fetch(url, { cache: "no-store" });
+
+  if (!res.ok) {
+    throw new Error(
+      `Movements sheet CSV export failed (${res.status}). Confirm the sheet is shared as "Anyone with the link can view".`
+    );
+  }
+
+  const csv = await res.text();
+  const rows = parseCsv(csv);
+  return rowsToMovements(rows);
 }

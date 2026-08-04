@@ -60,6 +60,38 @@ function toNumber(raw: string): number {
 }
 
 /**
+ * Expects header row: Date | Timestamp | ISIN | Description |
+ * Previous Qty | Current Qty | Change
+ */
+export interface RawMovementRow {
+  date: string; // yyyy-MM-dd, IST — written by Apps Script
+  timestamp: string; // ISO string
+  isin: string;
+  description: string;
+  previousQuantity: number;
+  currentQuantity: number;
+  change: number;
+}
+
+export function rowsToMovements(rows: string[][]): RawMovementRow[] {
+  if (rows.length === 0) return [];
+
+  const [, ...dataRows] = rows; // drop header row
+
+  return dataRows
+    .filter((r) => r[2] && r[2].trim().length > 0) // ISIN present
+    .map((r) => ({
+      date: (r[0] ?? "").trim(),
+      timestamp: (r[1] ?? "").trim(),
+      isin: (r[2] ?? "").trim(),
+      description: (r[3] ?? "").trim(),
+      previousQuantity: toNumber(r[4] ?? "0"),
+      currentQuantity: toNumber(r[5] ?? "0"),
+      change: toNumber(r[6] ?? "0"),
+    }));
+}
+
+/**
  * Expects header row: ISIN | Description | Last Transaction Date |
  * Beneficiary Balance | Price | Value
  */

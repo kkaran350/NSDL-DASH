@@ -312,6 +312,19 @@
   background: rgba(120, 150, 135, 0.55);
 }
 
+.hl-clickable-card {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hl-clickable-card:hover {
+  transform: translateY(-2px);
+}
+.hl-clickable-card:focus-visible {
+  outline: none;
+  box-shadow: var(--hl-focus-ring);
+}
+
+
 /* --- Login ----------------------------------------------------------- */
 
 .hl-signin-btn {

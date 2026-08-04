@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchHoldings } from "@/lib/sheets";
 
-// Always hit the source fresh — the sheet itself updates every 5 minutes,
-// so no benefit to caching longer than that, and staleness here would just
-// hide new transactions from the dashboard.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
