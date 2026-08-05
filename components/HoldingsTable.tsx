@@ -591,7 +591,7 @@ export default function HoldingsTable({
       </div>
 
       {/* Mobile: one card per holding, below the md breakpoint */}
-      <div className="hl-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto overscroll-contain px-3 py-3 md:hidden">
+      <div className="flex flex-col gap-2.5 px-3 py-3 md:hidden">
         {rows.map((row) => {
           const h = row.holding;
           const todayColor =
