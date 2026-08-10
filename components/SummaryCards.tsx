@@ -1,10 +1,12 @@
 "use client";
 
-import { Holding, DailyChange } from "@/lib/types";
+import { Holding, DailyChange, FrequencyEntry } from "@/lib/types";
+import { parseLedgerDate } from "@/lib/dates";
 
 interface SummaryCardsProps {
   holdings: Holding[];
   dailyChanges: DailyChange[];
+  mostFrequent: FrequencyEntry | null;
   onOpenAdditions: () => void;
   onOpenSubtractions: () => void;
 }
@@ -16,27 +18,33 @@ function formatQty(n: number): string {
 export default function SummaryCards({
   holdings,
   dailyChanges,
+  mostFrequent,
   onOpenAdditions,
   onOpenSubtractions,
 }: SummaryCardsProps) {
-  const totalQuantity = holdings.reduce((sum, h) => sum + h.quantity, 0);
   const activeHoldings = holdings.filter((h) => h.quantity > 0);
   const topByQuantity = [...activeHoldings].sort((a, b) => b.quantity - a.quantity)[0];
+
+  // Oldest last-transaction-date among live holdings — the ones NSDL
+  // hasn't recorded any activity on for the longest stretch.
+  const dormant = activeHoldings
+    .filter((h) => parseLedgerDate(h.lastTransactionDate) > 0)
+    .sort((a, b) => parseLedgerDate(a.lastTransactionDate) - parseLedgerDate(b.lastTransactionDate))[0];
 
   const todaysAdditions = dailyChanges.reduce((sum, d) => sum + d.additions, 0);
   const todaysSubtractions = dailyChanges.reduce((sum, d) => sum + d.subtractions, 0);
 
   const staticCards = [
     {
-      label: "TOTAL QUANTITY",
-      value: formatQty(totalQuantity),
-      sub: "units across all ISINs",
+      label: "DORMANT SHARES",
+      value: dormant ? dormant.lastTransactionDate : "—",
+      sub: dormant ? dormant.description.slice(0, 26) : "no data",
       color: "var(--hl-strong)",
     },
     {
-      label: "COMPANIES",
-      value: formatQty(holdings.length),
-      sub: `${formatQty(activeHoldings.length)} with a live balance`,
+      label: "MOST FREQUENT SHARE",
+      value: mostFrequent ? `${formatQty(mostFrequent.count)} txns` : "—",
+      sub: mostFrequent ? mostFrequent.description.slice(0, 26) : "no activity yet",
       color: "var(--hl-strong)",
     },
     {

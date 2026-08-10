@@ -38,3 +38,15 @@ export interface TodayMovements {
   totals: { additions: number; subtractions: number };
   byIsin: IsinMovements[];
 }
+
+/** One entry in the all-time "most frequently changed" ranking. */
+export interface FrequencyEntry {
+  isin: string;
+  description: string;
+  count: number;
+}
+
+export interface FrequencyResponse {
+  top: FrequencyEntry | null;
+  all: FrequencyEntry[];
+}

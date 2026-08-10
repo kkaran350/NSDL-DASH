@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DailyChange, Holding, TodayMovements } from "@/lib/types";
+import { DailyChange, FrequencyEntry, FrequencyResponse, Holding, TodayMovements } from "@/lib/types";
 import { isSheetDataSane, isPlausibleIsin } from "@/lib/validate";
 import {
   ThemeMode,
@@ -18,14 +18,15 @@ import AccountMenu from "./AccountMenu";
 import MovementsPanel from "./MovementsPanel";
 import { ChevronDownIcon, RefreshIcon } from "./icons";
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
-const REFRESH_COOLDOWN_MS = 20 * 1000;
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
+const REFRESH_COOLDOWN_MS = 20 * 1000; // minimum gap between manual refreshes
 
 const ORG_NAME = process.env.NEXT_PUBLIC_ORG_NAME ?? "Mittal Portfolios Pvt. Ltd.";
 
 export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [todayMovements, setTodayMovements] = useState<TodayMovements | null>(null);
+  const [mostFrequent, setMostFrequent] = useState<FrequencyEntry | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,10 +36,17 @@ export default function Dashboard() {
   const [openPanel, setOpenPanel] = useState<"additions" | "subtractions" | null>(null);
 
   const [theme, setTheme] = useState<ThemeMode>("light");
+  // The redesign is light/dark only — accent is carried through untouched so
+  // the saved preference still round-trips.
   const [accent, setAccent] = useState<AccentKey>("green");
 
   const previousHoldingsRef = useRef<Holding[] | undefined>(undefined);
 
+  // Today's additions/subtractions, and the per-ISIN "last change seen"
+  // timestamps for the ledger's "chg" stamp, both derive from the same
+  // /api/movements/today read — which comes from the Movements sheet tab,
+  // so every device sees the identical numbers. Nothing here is stored
+  // in this browser anymore.
   const dailyChanges = useMemo<DailyChange[]>(() => {
     if (!todayMovements) return [];
     return todayMovements.byIsin.map((e) => ({
@@ -53,6 +61,8 @@ export default function Dashboard() {
     const times: Record<string, string> = {};
     if (!todayMovements) return times;
     for (const entry of todayMovements.byIsin) {
+      // Transactions come back oldest-first per ISIN, so the last one is
+      // the most recent change recorded for it today.
       const latest = entry.transactions[entry.transactions.length - 1];
       if (latest) times[entry.isin] = latest.detectedAt;
     }
@@ -62,9 +72,10 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const [holdingsRes, movementsRes] = await Promise.all([
+      const [holdingsRes, movementsRes, frequencyRes] = await Promise.all([
         fetch("/api/holdings", { cache: "no-store" }),
         fetch("/api/movements/today", { cache: "no-store" }),
+        fetch("/api/movements/frequency", { cache: "no-store" }),
       ]);
 
       const holdingsJson = await holdingsRes.json();
@@ -77,10 +88,17 @@ export default function Dashboard() {
       const sanity = isSheetDataSane(nextHoldings, previousCount);
 
       if (!sanity.ok) {
+        // Don't let a bad read (e.g. sheet caught mid-write) overwrite a
+        // good dashboard — keep showing the last known-good data instead.
         setError(`Skipped a bad read: ${sanity.reason}. Showing the last good sync.`);
         return;
       }
 
+      // The sheet repeats its header row partway down, which otherwise
+      // lands in the ledger as a row reading "ISIN / Description / …" and
+      // inflates the company count. Drop anything whose first column isn't
+      // a real ISIN — after the sanity check above, so that check still
+      // sees the raw shape of the read.
       const cleanHoldings = nextHoldings.filter((h) => isPlausibleIsin(h.isin));
 
       previousHoldingsRef.current = cleanHoldings;
@@ -88,9 +106,19 @@ export default function Dashboard() {
       setLastSyncedAt(holdingsJson.fetchedAt);
       setError(null);
 
+      // Movements are best-effort on top of the holdings read above: if
+      // this call fails for some reason, keep showing the last good
+      // today's-changes rather than blanking the cards and table.
       if (movementsRes.ok) {
         const movementsJson: TodayMovements = await movementsRes.json();
         setTodayMovements(movementsJson);
+      }
+
+      // Same best-effort treatment — a failed frequency read just leaves
+      // the "Most Frequent Shares" card showing its last known value.
+      if (frequencyRes.ok) {
+        const frequencyJson: FrequencyResponse = await frequencyRes.json();
+        setMostFrequent(frequencyJson.top);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -120,6 +148,9 @@ export default function Dashboard() {
     return () => clearInterval(tick);
   }, []);
 
+  // The blocking script in layout.tsx already applied the saved theme to
+  // <html> before paint — this syncs React state so the toggle knows which
+  // icon to show, and re-applies in case an accent was saved too.
   useEffect(() => {
     const prefs = loadThemePrefs();
     setTheme(prefs.theme);
@@ -217,6 +248,7 @@ export default function Dashboard() {
         <SummaryCards
           holdings={holdings}
           dailyChanges={dailyChanges}
+          mostFrequent={mostFrequent}
           onOpenAdditions={() => setOpenPanel("additions")}
           onOpenSubtractions={() => setOpenPanel("subtractions")}
         />
