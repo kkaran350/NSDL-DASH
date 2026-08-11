@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DailyChange, FrequencyEntry, FrequencyResponse, Holding, TodayMovements } from "@/lib/types";
+import { parseLedgerDate } from "@/lib/dates";
 import { isSheetDataSane, isPlausibleIsin } from "@/lib/validate";
 import {
   ThemeMode,
@@ -16,6 +17,7 @@ import SummaryCards from "./SummaryCards";
 import HoldingsTable from "./HoldingsTable";
 import AccountMenu from "./AccountMenu";
 import MovementsPanel from "./MovementsPanel";
+import ShareRankingPanel, { RankingItem } from "./ShareRankingPanel";
 import { ChevronDownIcon, RefreshIcon } from "./icons";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
@@ -26,14 +28,16 @@ const ORG_NAME = process.env.NEXT_PUBLIC_ORG_NAME ?? "Mittal Portfolios Pvt. Ltd
 export default function Dashboard() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [todayMovements, setTodayMovements] = useState<TodayMovements | null>(null);
-  const [mostFrequent, setMostFrequent] = useState<FrequencyEntry | null>(null);
+  const [frequencyAll, setFrequencyAll] = useState<FrequencyEntry[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [statsOpen, setStatsOpen] = useState(true);
-  const [openPanel, setOpenPanel] = useState<"additions" | "subtractions" | null>(null);
+  const [openPanel, setOpenPanel] = useState<
+    "additions" | "subtractions" | "dormant" | "frequent" | null
+  >(null);
 
   const [theme, setTheme] = useState<ThemeMode>("light");
   // The redesign is light/dark only — accent is carried through untouched so
@@ -69,6 +73,28 @@ export default function Dashboard() {
     return times;
   }, [todayMovements]);
 
+  const mostFrequent = frequencyAll[0] ?? null;
+
+  const dormantTop10 = useMemo<RankingItem[]>(() => {
+    return holdings
+      .filter((h) => h.quantity > 0 && parseLedgerDate(h.lastTransactionDate) > 0)
+      .sort((a, b) => parseLedgerDate(a.lastTransactionDate) - parseLedgerDate(b.lastTransactionDate))
+      .slice(0, 10)
+      .map((h) => ({
+        isin: h.isin,
+        description: h.description,
+        value: h.lastTransactionDate,
+      }));
+  }, [holdings]);
+
+  const frequentTop10 = useMemo<RankingItem[]>(() => {
+    return frequencyAll.slice(0, 10).map((f) => ({
+      isin: f.isin,
+      description: f.description,
+      value: `${f.count.toLocaleString("en-IN")} txns`,
+    }));
+  }, [frequencyAll]);
+
   const fetchData = useCallback(async () => {
     setIsSyncing(true);
     try {
@@ -88,17 +114,10 @@ export default function Dashboard() {
       const sanity = isSheetDataSane(nextHoldings, previousCount);
 
       if (!sanity.ok) {
-        // Don't let a bad read (e.g. sheet caught mid-write) overwrite a
-        // good dashboard — keep showing the last known-good data instead.
         setError(`Skipped a bad read: ${sanity.reason}. Showing the last good sync.`);
         return;
       }
 
-      // The sheet repeats its header row partway down, which otherwise
-      // lands in the ledger as a row reading "ISIN / Description / …" and
-      // inflates the company count. Drop anything whose first column isn't
-      // a real ISIN — after the sanity check above, so that check still
-      // sees the raw shape of the read.
       const cleanHoldings = nextHoldings.filter((h) => isPlausibleIsin(h.isin));
 
       previousHoldingsRef.current = cleanHoldings;
@@ -106,19 +125,14 @@ export default function Dashboard() {
       setLastSyncedAt(holdingsJson.fetchedAt);
       setError(null);
 
-      // Movements are best-effort on top of the holdings read above: if
-      // this call fails for some reason, keep showing the last good
-      // today's-changes rather than blanking the cards and table.
       if (movementsRes.ok) {
         const movementsJson: TodayMovements = await movementsRes.json();
         setTodayMovements(movementsJson);
       }
 
-      // Same best-effort treatment — a failed frequency read just leaves
-      // the "Most Frequent Shares" card showing its last known value.
       if (frequencyRes.ok) {
         const frequencyJson: FrequencyResponse = await frequencyRes.json();
-        setMostFrequent(frequencyJson.top);
+        setFrequencyAll(frequencyJson.all);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -148,9 +162,6 @@ export default function Dashboard() {
     return () => clearInterval(tick);
   }, []);
 
-  // The blocking script in layout.tsx already applied the saved theme to
-  // <html> before paint — this syncs React state so the toggle knows which
-  // icon to show, and re-applies in case an accent was saved too.
   useEffect(() => {
     const prefs = loadThemePrefs();
     setTheme(prefs.theme);
@@ -251,6 +262,8 @@ export default function Dashboard() {
           mostFrequent={mostFrequent}
           onOpenAdditions={() => setOpenPanel("additions")}
           onOpenSubtractions={() => setOpenPanel("subtractions")}
+          onOpenDormant={() => setOpenPanel("dormant")}
+          onOpenFrequent={() => setOpenPanel("frequent")}
         />
       )}
 
@@ -260,10 +273,28 @@ export default function Dashboard() {
         changeTimes={changeTimes}
       />
 
-      {openPanel && (
+      {(openPanel === "additions" || openPanel === "subtractions") && (
         <MovementsPanel
           mode={openPanel}
           movements={todayMovements}
+          onClose={() => setOpenPanel(null)}
+        />
+      )}
+
+      {openPanel === "dormant" && (
+        <ShareRankingPanel
+          title="Dormant Shares"
+          subtitle="Oldest NSDL last-transaction dates, live holdings only"
+          items={dormantTop10}
+          onClose={() => setOpenPanel(null)}
+        />
+      )}
+
+      {openPanel === "frequent" && (
+        <ShareRankingPanel
+          title="Most Frequent Shares"
+          subtitle="Most transactions recorded, all-time"
+          items={frequentTop10}
           onClose={() => setOpenPanel(null)}
         />
       )}

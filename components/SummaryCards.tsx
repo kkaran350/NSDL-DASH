@@ -9,6 +9,8 @@ interface SummaryCardsProps {
   mostFrequent: FrequencyEntry | null;
   onOpenAdditions: () => void;
   onOpenSubtractions: () => void;
+  onOpenDormant: () => void;
+  onOpenFrequent: () => void;
 }
 
 function formatQty(n: number): string {
@@ -21,12 +23,11 @@ export default function SummaryCards({
   mostFrequent,
   onOpenAdditions,
   onOpenSubtractions,
+  onOpenDormant,
+  onOpenFrequent,
 }: SummaryCardsProps) {
   const activeHoldings = holdings.filter((h) => h.quantity > 0);
-  const topByQuantity = [...activeHoldings].sort((a, b) => b.quantity - a.quantity)[0];
 
-  // Oldest last-transaction-date among live holdings — the ones NSDL
-  // hasn't recorded any activity on for the longest stretch.
   const dormant = activeHoldings
     .filter((h) => parseLedgerDate(h.lastTransactionDate) > 0)
     .sort((a, b) => parseLedgerDate(a.lastTransactionDate) - parseLedgerDate(b.lastTransactionDate))[0];
@@ -34,51 +35,59 @@ export default function SummaryCards({
   const todaysAdditions = dailyChanges.reduce((sum, d) => sum + d.additions, 0);
   const todaysSubtractions = dailyChanges.reduce((sum, d) => sum + d.subtractions, 0);
 
-  const staticCards = [
-    {
-      label: "DORMANT SHARES",
-      value: dormant ? dormant.lastTransactionDate : "—",
-      sub: dormant ? dormant.description.slice(0, 26) : "no data",
-      color: "var(--hl-strong)",
-    },
-    {
-      label: "MOST FREQUENT SHARE",
-      value: mostFrequent ? `${formatQty(mostFrequent.count)} txns` : "—",
-      sub: mostFrequent ? mostFrequent.description.slice(0, 26) : "no activity yet",
-      color: "var(--hl-strong)",
-    },
-    {
-      label: "LARGEST HOLDING",
-      value: topByQuantity ? formatQty(topByQuantity.quantity) : "—",
-      sub: topByQuantity ? topByQuantity.description.slice(0, 26) : "no data",
-      color: "var(--hl-strong)",
-    },
-  ];
-
   return (
-    <div className="grid flex-none grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {staticCards.map((card) => (
-        <div key={card.label} className="hl-panel rounded-[18px] px-[18px] py-3">
-          <div
-            className="text-[10px] font-semibold tracking-[0.16em]"
-            style={{ color: "var(--hl-sub)" }}
-          >
-            {card.label}
-          </div>
-          <div
-            className="tabular mt-1 truncate font-display text-xl font-bold tracking-[-0.01em]"
-            style={{ color: card.color }}
-          >
-            {card.value}
-          </div>
-          <div
-            className="mt-[3px] truncate text-[11px]"
-            style={{ color: "var(--hl-muted)" }}
-          >
-            {card.sub}
-          </div>
+    <div className="grid flex-none grid-cols-2 gap-3 lg:grid-cols-4">
+      <button
+        type="button"
+        onClick={onOpenDormant}
+        aria-haspopup="dialog"
+        className="hl-panel hl-clickable-card rounded-[18px] px-[18px] py-3 text-left"
+      >
+        <div
+          className="text-[10px] font-semibold tracking-[0.16em]"
+          style={{ color: "var(--hl-sub)" }}
+        >
+          DORMANT SHARES
         </div>
-      ))}
+        <div
+          className="mt-1 truncate text-[15px] font-bold leading-snug"
+          style={{ color: "var(--hl-strong)" }}
+        >
+          {dormant ? dormant.description : "—"}
+        </div>
+        <div
+          className="mt-[3px] truncate text-[11px]"
+          style={{ color: "var(--hl-muted)" }}
+        >
+          {dormant ? dormant.lastTransactionDate : "no data"} · tap for top 10
+        </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenFrequent}
+        aria-haspopup="dialog"
+        className="hl-panel hl-clickable-card rounded-[18px] px-[18px] py-3 text-left"
+      >
+        <div
+          className="text-[10px] font-semibold tracking-[0.16em]"
+          style={{ color: "var(--hl-sub)" }}
+        >
+          MOST FREQUENT SHARE
+        </div>
+        <div
+          className="mt-1 truncate text-[15px] font-bold leading-snug"
+          style={{ color: "var(--hl-strong)" }}
+        >
+          {mostFrequent ? mostFrequent.description : "—"}
+        </div>
+        <div
+          className="mt-[3px] truncate text-[11px]"
+          style={{ color: "var(--hl-muted)" }}
+        >
+          {mostFrequent ? `${formatQty(mostFrequent.count)} txns` : "no activity yet"} · tap for top 10
+        </div>
+      </button>
 
       <button
         type="button"
