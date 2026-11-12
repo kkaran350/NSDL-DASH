@@ -3,15 +3,20 @@ import { ZohoItem } from "./types";
 // Zoho accounts/API hosts differ by data centre (.com, .in, .eu, .com.au, …).
 // Default to .in since that's where this org's data lives; override via env
 // if that's ever not the case.
-const ZOHO_ACCOUNTS_BASE =
-  process.env.ZOHO_ACCOUNTS_BASE ?? "https://accounts.zoho.in";
-const ZOHO_BOOKS_BASE =
-  process.env.ZOHO_BOOKS_BASE ?? "https://www.zohoapis.in/books/v3";
+// .trim() guards against a trailing space/newline sneaking in from
+// .env.local (easy to do with copy-paste) — an untrimmed host turns into
+// an invalid URL like "https://accounts.zoho.in /oauth/v2/token".
+const ZOHO_ACCOUNTS_BASE = (
+  process.env.ZOHO_ACCOUNTS_BASE ?? "https://accounts.zoho.in"
+).trim();
+const ZOHO_BOOKS_BASE = (
+  process.env.ZOHO_BOOKS_BASE ?? "https://www.zohoapis.in/books/v3"
+).trim();
 
-const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
-const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
-const ZOHO_REFRESH_TOKEN = process.env.ZOHO_REFRESH_TOKEN;
-const ZOHO_ORG_ID = process.env.ZOHO_ORG_ID;
+const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID?.trim();
+const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET?.trim();
+const ZOHO_REFRESH_TOKEN = process.env.ZOHO_REFRESH_TOKEN?.trim();
+const ZOHO_ORG_ID = process.env.ZOHO_ORG_ID?.trim();
 
 // Access tokens last ~1hr; cache in-memory for the life of this server
 // process so a burst of clicks on the tab doesn't re-auth every time.
