@@ -50,3 +50,35 @@ export interface FrequencyResponse {
   top: FrequencyEntry | null;
   all: FrequencyEntry[];
 }
+
+/** One item as returned by the Zoho Books /items endpoint. */
+export interface ZohoItem {
+  sku: string; // ISIN, stored as the item's SKU in Zoho
+  name: string;
+  stock: number;
+}
+
+export type ZohoDiffStatus = "match" | "mismatch" | "zoho_only" | "nsdl_only";
+
+/** One row of the Zoho-vs-NSDL comparison, keyed by ISIN/SKU. */
+export interface ZohoDiffRow {
+  isin: string;
+  zohoName: string | null;
+  nsdlDescription: string | null;
+  zohoStock: number | null;
+  nsdlBalance: number | null;
+  diff: number | null;
+  status: ZohoDiffStatus;
+}
+
+/** Response shape for GET /api/zoho/diff. */
+export interface ZohoDiffResponse {
+  fetchedAt: string;
+  rows: ZohoDiffRow[];
+  summary: {
+    matched: number;
+    mismatched: number;
+    zohoOnly: number;
+    nsdlOnly: number;
+  };
+}

@@ -18,6 +18,7 @@ import HoldingsTable from "./HoldingsTable";
 import AccountMenu from "./AccountMenu";
 import MovementsPanel from "./MovementsPanel";
 import ShareRankingPanel, { RankingItem } from "./ShareRankingPanel";
+import ZohoDiffPanel from "./ZohoDiffPanel";
 import { ChevronDownIcon, RefreshIcon } from "./icons";
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes, matching the depository refresh
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [statsOpen, setStatsOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<"holdings" | "zoho">("holdings");
   const [openPanel, setOpenPanel] = useState<
     "additions" | "subtractions" | "dormant" | "frequent" | null
   >(null);
@@ -255,23 +257,46 @@ export default function Dashboard() {
         </div>
       )}
 
-      {statsOpen && (
-        <SummaryCards
-          holdings={holdings}
-          dailyChanges={dailyChanges}
-          mostFrequent={mostFrequent}
-          onOpenAdditions={() => setOpenPanel("additions")}
-          onOpenSubtractions={() => setOpenPanel("subtractions")}
-          onOpenDormant={() => setOpenPanel("dormant")}
-          onOpenFrequent={() => setOpenPanel("frequent")}
-        />
-      )}
+<div className="flex flex-none items-center gap-2">
+  <button
+    onClick={() => setActiveTab("holdings")}
+    data-on={activeTab === "holdings"}
+    className="hl-chip rounded-full px-4 py-1.5 text-[13px] font-semibold"
+  >
+    Holdings
+  </button>
+  <button
+    onClick={() => setActiveTab("zoho")}
+    data-on={activeTab === "zoho"}
+    className="hl-chip rounded-full px-4 py-1.5 text-[13px] font-semibold"
+  >
+    Zoho
+  </button>
+</div>
 
-      <HoldingsTable
+{activeTab === "holdings" && (
+  <>
+    {statsOpen && (
+      <SummaryCards
         holdings={holdings}
         dailyChanges={dailyChanges}
-        changeTimes={changeTimes}
+        mostFrequent={mostFrequent}
+        onOpenAdditions={() => setOpenPanel("additions")}
+        onOpenSubtractions={() => setOpenPanel("subtractions")}
+        onOpenDormant={() => setOpenPanel("dormant")}
+        onOpenFrequent={() => setOpenPanel("frequent")}
       />
+    )}
+
+    <HoldingsTable
+      holdings={holdings}
+      dailyChanges={dailyChanges}
+      changeTimes={changeTimes}
+    />
+  </>
+)}
+
+{activeTab === "zoho" && <ZohoDiffPanel />}
 
       {(openPanel === "additions" || openPanel === "subtractions") && (
         <MovementsPanel
