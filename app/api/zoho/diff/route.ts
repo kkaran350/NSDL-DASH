@@ -29,7 +29,9 @@ export async function GET() {
       const nsdl = nsdlByIsin.get(isin) ?? null;
 
       if (zoho && nsdl) {
-        const diff = nsdl.quantity - zoho.stock;
+        // NSDL is the base: positive means Zoho's stock is higher than the
+        // NSDL balance, negative means Zoho's stock is lower.
+        const diff = zoho.stock - nsdl.quantity;
         const status = diff === 0 ? "match" : "mismatch";
         if (status === "match") matched++;
         else mismatched++;
