@@ -116,6 +116,16 @@ export function CloseIcon({ size = 18, className, style }: IconProps) {
 
 
 /** Zoho's "Z" mark, drawn as a stroke so it inherits the button's white. */
+export function DownloadIcon({ size = 18, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={2.2} className={className} style={style}>
+      <path d="M12 3v12" />
+      <polyline points="7 11 12 16 17 11" />
+      <path d="M5 19h14" />
+    </svg>
+  );
+}
+
 export function ZohoIcon({ size = 20, className, style }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} style={style}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ZohoDiffResponse, ZohoDiffRow } from "@/lib/types";
-import { SearchIcon, RefreshIcon } from "./icons";
+import { SearchIcon, RefreshIcon, DownloadIcon } from "./icons";
 
 const GRID_COLUMNS =
   "minmax(96px,1fr) minmax(150px,2.6fr) minmax(90px,1fr) minmax(90px,1fr) minmax(90px,1fr) minmax(110px,1fr)";
@@ -40,6 +40,7 @@ export default function ZohoDiffPanel() {
   const [filter, setFilter] = useState<"all" | "mismatch" | "zoho_only" | "nsdl_only">(
     "mismatch"
   );
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -74,6 +75,44 @@ export default function ZohoDiffPanel() {
     });
   }, [data, query, filter]);
 
+  async function handleExport() {
+    if (rows.length === 0) return;
+    setExporting(true);
+    try {
+      // Dynamically imported so the xlsx library (and its size) is only
+      // loaded when someone actually clicks Export, not on every page load.
+      const XLSX = await import("xlsx");
+
+      const sheetData = rows.map((r) => ({
+        ISIN: r.isin,
+        Name: r.zohoName ?? r.nsdlDescription ?? "",
+        "Zoho Stock": r.zohoStock ?? "",
+        "NSDL Balance": r.nsdlBalance ?? "",
+        Difference: r.diff ?? "",
+        Status: statusLabel(r.status),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(sheetData);
+      worksheet["!cols"] = [
+        { wch: 16 }, // ISIN
+        { wch: 42 }, // Name
+        { wch: 12 }, // Zoho Stock
+        { wch: 14 }, // NSDL Balance
+        { wch: 12 }, // Difference
+        { wch: 14 }, // Status
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Zoho vs NSDL");
+
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      const fileName = `zoho-nsdl-${filter}-${dateStamp}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="hl-table-panel flex min-h-0 flex-1 flex-col rounded-2xl">
       <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--hl-table-border)" }}>
@@ -107,6 +146,15 @@ export default function ZohoDiffPanel() {
               className="w-40 bg-transparent text-[13px] outline-none sm:w-56"
             />
           </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting || rows.length === 0}
+            title="Export the current view to Excel"
+            className="hl-panel flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold disabled:opacity-40"
+          >
+            <DownloadIcon size={15} />
+            {exporting ? "Exporting…" : "Export"}
+          </button>
           <button
             onClick={load}
             disabled={loading}
